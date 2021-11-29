@@ -1,0 +1,21 @@
+- hosts: elk 
+  remote_user: root
+  vars_files:
+    - ./vars/vars.yml
+  tasks:
+    - name: check password
+      shell: cat /root/password.txt
+      register: password
+    - name: start elasticsearch 
+      shell: systemctl stop elasticsearch && systemctl start elasticsearch
+    - name: generate password 
+      shell:  printf "y"  | /usr/share/elasticsearch/bin/elasticsearch-setup-passwords  auto  > /root/password.txt
+      when: ansible_hostname == '{{FRIST_NODENAME_ELASTIC}}' and password.stdout.find('elastic ') == -1
+    - name: cat /root/password.txt
+      shell: cat /root/password.txt
+      register: password
+      when: ansible_hostname == '{{FRIST_NODENAME_ELASTIC}}'
+    - debug: msg="Your password '{{FRIST_NODENAME_ELASTIC}}':/root/password.txt {{password.stdout_lines}}" 
+      when: ansible_hostname == '{{FRIST_NODENAME_ELASTIC}}' 
+    - debug: msg="kibana set username and password and systemctl restart kibana"
+      when: ansible_hostname == '{{FRIST_NODENAME_ELASTIC}}'
