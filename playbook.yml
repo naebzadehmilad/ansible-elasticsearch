@@ -1,0 +1,14 @@
+- hosts: elk 
+  remote_user: root
+- name: hosts
+  import_playbook: tasks/hosts.yml
+- name: install-elk
+  import_playbook: tasks/install-elk.yml
+- name: config
+  import_playbook: tasks/config.yml
+- name: keys 
+  import_playbook: tasks/key.yml
+- name: haproxy
+  import_playbook: tasks/haproxy.yml
+- name: start
+  import_playbook: tasks/start.yml
