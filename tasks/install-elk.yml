@@ -1,0 +1,59 @@
+- hosts: elk 
+  remote_user: root
+  vars_files:
+    - ./vars/vars.yml
+  tasks:
+    - name: check packages
+      package_facts:
+        manager: auto
+    - name: change dns 
+      shell: echo "nameserver 185.51.200.2" > /etc/resolv.conf
+    - name: init
+      shell: apt-get install apt-transport-https ca-certificates gnupg2 -y && wget -qO - https://artifacts.elastic.co/GPG-KEY-elasticsearch | apt-key add -
+    - name: add-apt
+      shell: sh -c 'echo "deb https://artifacts.elastic.co/packages/7.x/apt stable main" > /etc/apt/sources.list.d/elastic-7.x.list'
+    - name: tunning
+      shell: cat /etc/security/limits.conf
+      register: limits
+    - name: limits.conf
+      when: limits.stdout.find('elasticsearch soft nofile 65535') != -1
+      debug: msg="limits.conf is ok! "
+    - name: if the limits.conf parameters does not exist
+      when: limits.stdout.find('elasticsearch soft nofile 65535') == -1
+      shell: | 
+        echo "\n##*# ADDED BY ANSIBLE##*#\n" >> /etc/security/limits.conf
+        echo "elasticsearch    soft    nofile          65535 \n" >>/etc/security/limits.conf
+        echo "elasticsearch    hard    nofile          65535 \n" >> /etc/security/limits.conf
+        echo "elasticsearch    soft   memlock         unlimited \n" >> /etc/security/limits.conf
+        echo "elasticsearch    hard   memlock         unlimited \n" >> /etc/security/limits.conf
+        echo "\n##*# ADDED BY ANSIBLE##*#\n" >> /etc/security/limits.conf
+    - debug: msg=" /etc/security/limits.conf edited "
+      when: limits.stdout.find('elasticsearch soft nofile 65535') == -1
+    - name: read the /etc/sysctl.conf
+      shell: cat /etc/sysctl.conf
+      register: sysctl
+    - name: if the kernel parameters exist
+      when: sysctl.stdout.find('net.core.somaxconn=65535') != -1
+      debug: msg="kernel parameters exist "
+    - name: if the kernel parameters does not exist
+      when: sysctl.stdout.find('net.core.somaxconn=65535') == -1 
+      debug: msg="kernel parameters does not exist "
+    - name: Add  kernel parameters 
+      shell: |
+        echo "\n##*#ADDED BY ANSIBLE##*#\n " >> /etc/sysctl.conf
+        echo "vm.swappiness=1\n " >> /etc/sysctl.conf
+        echo "net.core.somaxconn=65535\n" >> /etc/sysctl.conf
+        echo "net.core.somaxconn=65535\n" >> /etc/sysctl.conf
+        echo "vm.max_map_count=262144\n" >> /etc/sysctl.conf
+        echo "fs.file-max=518144\n" >> /etc/sysctl.conf
+        echo "##*#ADDED BY ANSIBLE##*#\n"  >> /etc/sysctl.conf
+        sysctl -p 
+      when: sysctl.stdout.find('net.core.somaxconn=65535') == -1
+    - debug: msg="/etc/sysctl.conf edited "
+      when: sysctl.stdout.find('net.core.somaxconn=65535') == -1
+    - name: get elastic
+      apt: update_cache=true state=latest  name=elasticsearch
+      when: "'elasticsearch' not in ansible_facts.packages" 
+    - name: get kibana
+      shell: apt install -y kibana 
+      when: ansible_hostname == '{{FRIST_NODENAME_ELASTIC}}' 
