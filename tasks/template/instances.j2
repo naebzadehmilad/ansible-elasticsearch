@@ -1,0 +1,7 @@
+#jinja2: trim_blocks:False
+instances:
+  - name: "elk"
+    ip:
+      - {%for server in groups['elk']%}"{{ hostvars[server]['ansible_facts']['default_ipv4']['address']}}"   
+      {% if not loop.last -%} 
+      - {% endif %}{%- endfor %}- "{{FLOATIP}}"
