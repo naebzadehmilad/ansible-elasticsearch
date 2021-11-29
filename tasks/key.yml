@@ -1,0 +1,40 @@
+- hosts: elk 
+  remote_user: root
+  vars_files:
+    - ./vars/vars.yml
+  tasks:
+  - name: copy instances.yml ***STG1 
+    template: src=./template/instances.j2 dest=/tmp/instances.yml mode=0644
+    when: ansible_hostname =='{{FRIST_NODENAME_ELASTIC}}'
+  - name: initialize KEYS(GENERATE...) ***STG2
+    shell: | 
+       cp -r /tmp/instances.yml /usr/share/elasticsearch/instances.yml
+       rm -rf /usr/share/elasticsearch/ansible-certs.zip
+       /usr/share/elasticsearch/bin/elasticsearch-certutil cert ca --days 2000 --pem --in instances.yml --out ansible-certs.zip
+    when: ansible_hostname =='{{FRIST_NODENAME_ELASTIC}}'
+  - name: initialize KEYS(UNZIP) ***STG3
+    shell: |
+       rm -rf /etc/elasticsearch/ca
+       mkdir -p /etc/elasticsearch/ca/ && chmod 755 /etc/elasticsearch/ca && unzip  /usr/share/elasticsearch/ansible-certs.zip -d /etc/elasticsearch/ca/
+    when: ansible_hostname =='{{FRIST_NODENAME_ELASTIC}}'
+  - name: initialize KEYS(PERMISSION) ***STG4
+    shell: |
+       chown -R elasticsearch:elasticsearch /etc/elasticsearch/ca/
+       ls -lh /etc/elasticsearch/ca/ca/ && ls  -lh /etc/elasticsearch/ca/elk/
+    when: ansible_hostname =='{{FRIST_NODENAME_ELASTIC}}'
+    register: ls 
+  - debug: msg="{{ ls.stdout_lines }}"
+    when: ansible_hostname =='{{FRIST_NODENAME_ELASTIC}}'
+  - name: COPY crt
+    fetch:  src=/etc/elasticsearch/ca/ca/ca.crt dest=/tmp/  
+    when: ansible_hostname =='{{FRIST_NODENAME_ELASTIC}}'
+  - name: COPY elk.crt
+    fetch: src=/etc/elasticsearch/ca/elk/elk.crt dest=/tmp/
+    when: ansible_hostname =='{{FRIST_NODENAME_ELASTIC}}'
+  - name: COPY elk.key
+    fetch: src=/etc/elasticsearch/ca/elk/elk.key dest=/tmp/
+    when: ansible_hostname =='{{FRIST_NODENAME_ELASTIC}}'
+  - name: COPY to nodes 
+    copy: src=/tmp/elk1/etc/elasticsearch/ca dest=/etc/elasticsearch/
+  - name: Add Permission 
+    shell: chown -R elasticsearch:elasticsearch /etc/elasticsearch/ca 
