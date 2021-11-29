@@ -1,0 +1,12 @@
+- hosts: elk 
+  remote_user: root
+  vars_files:
+    - ./vars/vars.yml
+  tasks:
+  - name: copy elasticsearch.yml 
+    template: src=./template/elasticsearch.j2 dest=/etc/elasticsearch/elasticsearch.yml mode=0644
+  - name: copy service
+    template: src=./template/service-elastic.j2 dest=/lib/systemd/system/elasticsearch.service mode=0644
+  - name: copy kibana.yml
+    template: src=./template/kibana.j2 dest=/etc/kibana/kibana.yml
+    when: ansible_hostname == '{{FRIST_NODENAME_ELASTIC}}' 
